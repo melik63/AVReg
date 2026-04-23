@@ -1,0 +1,68 @@
+---
+- name: Обновить список пакетов
+  apt:
+    update_cache: yes
+
+- name: Установить необходимые зависимости
+  apt:
+    name:
+      - curl
+      - wget
+      - gnupg
+    state: present
+
+- name: Скачать и установить k3s с нужными флагами
+  shell: |
+    curl -sfL https://get.k3s.io | \
+      INSTALL_K3S_VERSION={{ k3s_version }} \
+      INSTALL_K3S_EXEC="server --bind-address=0.0.0.0 --advertise-address={{ k3s_node_ip }} --tls-san={{ k3s_node_ip }} --https-listen-port=6443" \
+      sh -
+  args:
+    executable: /bin/bash
+
+- name: Проверить статус службы k3s
+  systemd:
+    name: k3s
+    state: started
+    enabled: yes
+
+- name: Создать .kube директорию для пользователя ubuntu
+  file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Добавить kubeconfig для пользователя ubuntu
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+    remote_src: yes
+
+- name: Убедиться, что server в kubeconfig использует https и 127.0.0.1
+  lineinfile:
+    path: /home/{{ ansible_user }}/.kube/config
+    regexp: '^\s*server: http://127\.0\.0\.1:6443'
+    line: "server: https://127.0.0.1:6443"
+  notify: restart k3s
+
+- name: Скачать kubeconfig на локальный хост (Ansible)
+  fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "{{ playbook_dir }}/../kubeconfig/k3s.yaml"
+    flat: yes
+  delegate_to: "{{ inventory_hostname }}"
+  run_once: yes
+
+- name: Показать токен агента (node-token)
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: node_token
+
+- name: Вывести информацию о токене
+  debug:
+    msg: "Node token: {{ node_token.content | b64decode }}"

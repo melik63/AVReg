@@ -1,3 +1,11 @@
+- name: Установка k3s на Ubuntu
+  hosts: k3s
+  become: yes
+  vars_files:
+    - "../inventories/{{env}}/group_vars/k3s.yml"
+  roles:
+    - { role: 'k3s', tags: 'k3s'}
+
 - name: Install AVReg on Ubuntu
   gather_facts: yes
   hosts: all

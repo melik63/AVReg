@@ -1,0 +1,4 @@
+- name: restart k3s
+  systemd:
+    name: k3s
+    state: restarted

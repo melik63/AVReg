@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: your_name
+  description: Ansible role to deploy DuckDNS updater in k3s
+  company: none
+  license: MIT
+  min_ansible_version: 2.10
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+  galaxy_tags:
+    - kubernetes
+    - k3s
+    - duckdns
+    - dynamic-dns
+dependencies: []
