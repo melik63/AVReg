@@ -1,0 +1,106 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install prerequisites
+  apt:
+    name:
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - apt-transport-https
+    state: present
+
+- name: Create keyrings directory if not exists
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download and dearmor AVReg GPG key
+  shell: |
+    curl -fsSL http://avreg.net/repos/avreg.gpg | gpg --dearmor --batch --yes -o /usr/share/keyrings/avreg-archive-keyring.gpg
+  args:
+    warn: false
+
+- name: Add AVReg repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/avreg-archive-keyring.gpg] http://avreg.net/repos/6.3-html5/ubuntu jammy main contrib non-free"
+    state: present
+    filename: avreg
+    update_cache: yes
+
+# --- ИЗМЕНЕНИЕ 1: Сначала ставим и запускаем MySQL ---
+- name: Install MySQL Server
+  apt:
+    name:
+      - mysql-server # Или mariadb-server, если репозиторий AVReg тянет его
+    state: present
+
+- name: Ensure MySQL is started and enabled
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+
+# ... (предыдущие задачи)
+
+- name: Install AVReg Server (MySQL version)
+  apt:
+    name:
+      - avreg-server-mysql
+      - apache2
+      - libapache2-mod-php
+      - php-mysql
+      - php-gd
+      - php-curl
+      - ffmpeg
+    state: present
+    update_cache: yes
+  notify: Restart AVReg
+
+# Закомментировано, так как файла нет
+# - name: Initialize AVReg database
+#   command: /usr/share/avreg/setup-db.sh
+#   args:
+#     creates: /var/lib/avreg/db_initialized
+#   ignore_errors: yes
+#   notify: Restart AVReg
+
+- name: Ensure Apache is started and enabled
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+
+# Попытка запустить сервис avreg, если он существует
+- name: Ensure AVReg backend service is started (if exists)
+  service:
+    name: avreg
+    state: started
+    enabled: yes
+  ignore_errors: yes 
+  # Примечание: проверьте точное имя сервиса через 'systemctl list-units | grep avreg' на хосте
+
+
+- name: Ensure UFW is installed
+  apt:
+    name: ufw
+    state: present
+
+- name: Allow HTTP traffic from local network in UFW
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    src: 192.168.1.0/24  # Разрешаем всей подсети, или укажите конкретный IP
+  ignore_errors: no # Убираем игнорирование ошибок, чтобы видеть проблемы
+
+- name: Enable UFW if not enabled
+  ufw:
+    state: enabled
+    policy: deny
+  ignore_errors: yes # Игнорируем, если он уже включен или нет интерактивного доступа

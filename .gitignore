@@ -1,6 +1,6 @@
 .*
 collections
-roles
+#roles
 .vault.*.pass
 
 !.git
