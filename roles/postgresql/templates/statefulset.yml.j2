@@ -14,29 +14,9 @@ spec:
       labels:
         app: postgres
     spec:
-      initContainers:
-        - name: init-replica
-          image: {{ postgres_image }}
-          env:
-            - name: POSTGRES_USER
-              value: "{{ postgres_user }}"
-            - name: POSTGRES_PASSWORD
-              value: "{{ postgres_password }}"
-            - name: POSTGRES_DB
-              value: "{{ postgres_db }}"
-            - name: NAMESPACE
-              value: "{{ namespace }}"
-          command:
-            - /scripts/init-replica.sh
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-            - name: scripts
-              mountPath: /scripts
-          securityContext:
-            runAsUser: 999
-            runAsGroup: 999
-            fsGroup: 999
+      # Убираем глобальный securityContext, который ломает права на local-path
+      # securityContext:
+      #   fsGroup: 999
       containers:
         - name: postgres
           image: {{ postgres_image }}
@@ -49,19 +29,25 @@ spec:
               value: "{{ postgres_user }}"
             - name: POSTGRES_DB
               value: "{{ postgres_db }}"
+          # Добавляем securityContext только для контейнера
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+              subPath: pgdata # <-- Важно: пишем в подкаталог
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ postgres_db }}"]
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 5
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ postgres_db }}"]
             initialDelaySeconds: 30
-            periodSeconds: 30
+            periodSeconds: 10
           resources:
             requests:
               memory: "512Mi"
@@ -69,11 +55,6 @@ spec:
             limits:
               memory: "800Mi"
               cpu: "400m"
-      volumes:
-        - name: scripts
-          configMap:
-            name: postgres-init-script
-            defaultMode: 0755
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -82,4 +63,4 @@ spec:
         resources:
           requests:
             storage: {{ postgres_storage_size }}
-        storageClassName: ""
+        storageClassName: local-path
