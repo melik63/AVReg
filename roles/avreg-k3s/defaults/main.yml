@@ -1,0 +1,20 @@
+---
+# Namespace для приложения
+avreg_namespace: "avreg"
+
+# Образ приложения
+avreg_image: "ymiroshnyk/avreg:latest"
+avreg_replica_count: 1
+
+# Конфигурация PostgreSQL (внешний или внутренний)
+# Если используется внешний PSQL, укажите хост и учетные данные здесь.
+# Если нужно поднимать PSQL внутри K8s, потребуется отдельный чарт/манифест.
+avreg_db_host: "postgres-service.avreg.svc.cluster.local" # Пример внутреннего сервиса
+avreg_db_port: "5432"
+avreg_db_name: "avregdb"
+avreg_db_user: "avreguser"
+avreg_db_password: "changeme" # В продакшене использовать Vault или Secrets
+
+# Порты сервиса
+avreg_service_port: 80
+avreg_container_port: 8080

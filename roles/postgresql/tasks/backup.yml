@@ -1,0 +1,5 @@
+- name: Создать CronJob для бэкапов
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'backup-cronjob.yml.j2') }}"
+

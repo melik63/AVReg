@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: {{ namespace }}
+spec:
+  serviceName: "postgres"
+  replicas: {{ postgres_replicas }}
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      initContainers:
+        - name: init-replica
+          image: {{ postgres_image }}
+          env:
+            - name: POSTGRES_USER
+              value: "{{ postgres_user }}"
+            - name: POSTGRES_PASSWORD
+              value: "{{ postgres_password }}"
+            - name: POSTGRES_DB
+              value: "{{ postgres_db }}"
+            - name: NAMESPACE
+              value: "{{ namespace }}"
+          command:
+            - /scripts/init-replica.sh
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: scripts
+              mountPath: /scripts
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+      containers:
+        - name: postgres
+          image: {{ postgres_image }}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              value: "{{ postgres_password }}"
+            - name: POSTGRES_USER
+              value: "{{ postgres_user }}"
+            - name: POSTGRES_DB
+              value: "{{ postgres_db }}"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ postgres_db }}"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ postgres_user }}", "-d", "{{ postgres_db }}"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "800Mi"
+              cpu: "400m"
+      volumes:
+        - name: scripts
+          configMap:
+            name: postgres-init-script
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ postgres_storage_size }}
+        storageClassName: ""

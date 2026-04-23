@@ -1,15 +1,21 @@
 - name: Установка k3s на Ubuntu
   hosts: k3s
   become: yes
+  tags: k3s
   vars_files:
     - "../inventories/{{env}}/group_vars/k3s.yml"
   roles:
-    - { role: 'k3s', tags: 'k3s'}
+    - { role: 'k3s', tags: 'k3s-install'}
+    - { role: 'alias', tags: 'alias'}
 
 - name: Install AVReg on Ubuntu
   gather_facts: yes
-  hosts: all
+  hosts: k3s
+  tags: avreg
   roles:
-    - { role: 'avreg', tags: 'avreg' }
+    - { role: 'avreg-k3s', tags: 'avreg-k3s' }
+    - { role: 'postgresql', tags: 'psql'}
+  environment:
+    K8S_AUTH_KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   become: yes
 

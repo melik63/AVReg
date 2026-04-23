@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: {{ namespace }}
+data:
+  init-replica.sh: |
+{{ lookup('file', role_path + '/files/init-replica.sh') | indent(4, true) }}
+

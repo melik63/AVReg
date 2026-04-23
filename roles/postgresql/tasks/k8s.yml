@@ -1,0 +1,5 @@
+- name: Создать PV и PVC для каждого pod
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'pv.yml.j2') }}"
+

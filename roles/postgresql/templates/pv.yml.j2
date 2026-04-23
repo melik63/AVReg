@@ -1,0 +1,16 @@
+{% for i in range(postgres_replicas) %}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv-{{ i }}
+spec:
+  capacity:
+    storage: {{ postgres_storage_size }}
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ postgres_storage_path }}/postgres-{{ i }}"
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""  # ← важно: пустая строка
+---
+{% endfor %}

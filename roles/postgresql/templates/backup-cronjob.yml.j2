@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: {{ namespace }}
+spec:
+  schedule: "{{ backup_schedule }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: alpine:latest
+            env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "{{ seaweed_access_key }}"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "{{ seaweed_secret_key }}"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+#            - name: PGPASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  name: postgres-backup-credentials
+#                  key: PGPASSWORD
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Установка необходимых пакетов
+              apk add --no-cache postgresql-client curl
+
+              # Создание бэкапа
+              PGPASSWORD=immich pg_dump -h postgres-0.postgres.immich.svc.cluster.local -U immich > /tmp/backup.sql
+
+              # Проверка: файл не пустой?
+              if [ ! -s /tmp/backup.sql ]; then
+                echo "ERROR: Backup file is empty!" >&2
+                exit 1
+              fi
+
+              # Загрузка в MinIO/S3 через curl
+              BACKUP_NAME="backup-$(date +\%Y-\%m-\%d-\%H%M%S).sql"
+              curl -u "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
+                --upload-file /tmp/backup.sql \
+                "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333/rdbms/$BACKUP_NAME"
+
+              echo "Backup uploaded successfully: $BACKUP_NAME"
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+            volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          restartPolicy: OnFailure
+          volumes:
+          - name: tmp
+            emptyDir: {}
+

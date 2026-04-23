@@ -1,0 +1,16 @@
+postgres_replicas: 1
+postgres_image: pgvector/pgvector:pg15
+postgres_storage_path: /home/psql
+postgres_storage_size: 5Gi
+postgres_user: avreguser
+postgres_password: changeme
+postgres_db: "avregdb"
+namespace: avreg
+
+# Backup
+backup_schedule: "*/5 * * * *"   # каждый день в 2:00
+s3_bucket: "rdbms"
+seaweed_endpoint: "192.168.1.23:8333"
+seaweed_access_key: "immich"
+seaweed_secret_key: "immich_pass"
+

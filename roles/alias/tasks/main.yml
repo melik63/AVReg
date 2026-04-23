@@ -1,0 +1,27 @@
+---
+- name: Установить алиас 'k' через /etc/profile.d (для login-шеллов)
+  copy:
+    content: |
+      # Global alias for kubectl
+      alias k='kubectl'
+    dest: /etc/profile.d/kubectl_alias.sh
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Установить алиас 'k' через /etc/bash.bashrc (для интерактивных bash)
+  lineinfile:
+    path: /etc/bash.bashrc
+    line: "alias k='kubectl'"
+    state: present
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Сообщить о необходимости перезапустить shell
+  debug:
+    msg: |
+      Алиас 'k' установлен в /etc/profile.d и /etc/bash.bashrc.
+      Чтобы изменения вступили в силу, откройте новую сессию или выполните:
+      exec bash -l

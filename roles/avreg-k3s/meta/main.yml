@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Your Name
+  description: Role to deploy AVReg to K3s with PostgreSQL support
+  license: MIT
+  min_ansible_version: "2.9"
+
+dependencies: []

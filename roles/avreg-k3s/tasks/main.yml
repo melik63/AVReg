@@ -1,0 +1,94 @@
+---
+- name: Install pip
+  apt:
+    name: python3-pip
+    state: present
+
+- name: Install Kubernetes Python dependencies via apt
+  apt:
+    name:
+      - python3-kubernetes
+      - python3-yaml
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Create namespace for AVReg
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: "{{ avreg_namespace }}"
+    state: present
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('/etc/rancher/k3s/k3s.yaml', true) }}"
+
+- name: Create PostgreSQL Secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: avreg-db-secret
+        namespace: "{{ avreg_namespace }}"
+      type: Opaque
+      stringData:
+        DB_HOST: "{{ avreg_db_host }}"
+        DB_PORT: "{{ avreg_db_port }}"
+        DB_NAME: "{{ avreg_db_name }}"
+        DB_USER: "{{ avreg_db_user }}"
+        DB_PASSWORD: "{{ avreg_db_password }}"
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('/etc/rancher/k3s/k3s.yaml', true) }}"
+
+- name: Deploy AVReg Application
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: avreg
+        namespace: "{{ avreg_namespace }}"
+        labels:
+          app: avreg
+      spec:
+        replicas: "{{ avreg_replica_count }}"
+        selector:
+          matchLabels:
+            app: avreg
+        template:
+          metadata:
+            labels:
+              app: avreg
+          spec:
+            containers:
+              - name: avreg
+                image: "{{ avreg_image }}"
+                ports:
+                  - containerPort: "{{ avreg_container_port }}"
+                envFrom:
+                  - secretRef:
+                      name: avreg-db-secret
+                # Пример переменных окружения, если приложение их требует явно
+                env:
+                  - name: DATABASE_URL
+                    value: "postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('/etc/rancher/k3s/k3s.yaml', true) }}"
+
+- name: Expose AVReg Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: avreg
+        namespace: "{{ avreg_namespace }}"
+      spec:
+        selector:
+          app: avreg
+        ports:
+          - protocol: TCP
+            port: "{{ avreg_service_port }}"
+            targetPort: "{{ avreg_container_port }}"
+        type: ClusterIP # Или LoadBalancer/NodePort в зависимости от требований
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('/etc/rancher/k3s/k3s.yaml', true) }}"

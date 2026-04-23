@@ -1,0 +1,10 @@
+---
+- name: Restart AVReg
+  service:
+    name: avreg-server
+    state: restarted
+
+- name: Restart Apache
+  service:
+    name: apache2
+    state: restarted

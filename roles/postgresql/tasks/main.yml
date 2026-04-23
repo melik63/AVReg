@@ -1,0 +1,35 @@
+- name: Создать namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ namespace }}"
+
+- name: Создать ConfigMap с init-скриптом
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'configmap-init-script.yml.j2') }}"
+
+- name: Применить PV/PVC
+  include_tasks: k8s.yml
+
+- name: Применить StatefulSet и сервис
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'statefulset.yml.j2') }}"
+
+- name: Применить сервис для доступа
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'service.yml.j2') }}"
+
+#- name: Применить ingress
+#  kubernetes.core.k8s:
+#    state: present
+#    definition: "{{ lookup('template', 'ingress.yml.j2') }}"
+
+- name: Настроить CronJob для бэкапов
+  include_tasks: backup.yml
+
