@@ -1,0 +1,7 @@
+- name: Install AVReg on Ubuntu
+  gather_facts: yes
+  hosts: all
+  roles:
+    - { role: 'avreg', tags: 'avreg' }
+  become: yes
+
